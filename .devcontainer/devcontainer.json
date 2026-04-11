@@ -1,0 +1,38 @@
+{
+    "name": "docsify-plugins",
+    "portsAttributes": {
+        "3330": {
+            "label": "docsify site",
+            "onAutoForward": "silent",
+            "protocol": "http"
+        }
+    },
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+    "features": {
+        "ghcr.io/devcontainers/features/go:1": {
+            "version": "latest",
+            "golangciLintVersion": "latest"
+        },
+        "ghcr.io/thediveo/devcontainer-features/lazygit:0": {},
+        "ghcr.io/thediveo/devcontainer-features/docsify:0": {
+            "port": "3330",
+            "livereload-port": "3331",
+            "docs-path": "_docs"
+        }
+    },
+    "remoteEnv": {
+        "GOPATH": "/home/vscode/go",
+        "PATH": "/home/vscode/go/bin:/go/bin:/usr/local/go/bin:${localEnv:PATH}"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "dnut.rewrap-revived",
+                "brunnerh.insert-unicode",
+                "mhutchie.git-graph",
+                "ms-vscode.live-server",
+                "foxundermoon.shell-format@7.2.5"
+            ]
+        }
+    }
+}
