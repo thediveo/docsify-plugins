@@ -5,6 +5,9 @@
 		}
 	],
 	"settings": {
-		"workbench.tree.indent": 16
+		"workbench.tree.indent": 16,
+		"markdown.styles": [
+			"./.vscode/markdown-preview.css"
+		]
 	}
 }

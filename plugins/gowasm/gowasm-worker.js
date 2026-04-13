@@ -14,40 +14,40 @@
 
 "use strict";
 
-importScripts('wasm_exec.js')
-
 const decoder = new TextDecoder('utf-8')
-
-// wasm_exec.js installs a global "fs" object with various file system
-// functions, especially the writeSync method we're interested in. In order to
-// fall back onto it where needed, we save the original function.
-const fsWriteSync = globalThis.fs.writeSync
-
-// We're now hooking into the file system output function, dealing with stdin
-// (fd #1) and stdout (fd #2) especially: we send output to these file
-// descriptors not to the original write function (which does send it to
-// console.log and console.err respectively) but instead to "the other" side,
-// where hopefully our nice xterm.js is still waiting...
-globalThis.fs.writeSync = function (fd, buf) {
-    switch (fd) {
-        case 1:
-        case 2:
-            globalThis.postMessage({
-                type: fd === 1 ? 'stdout' : 'stderr',
-                data: decoder.decode(buf),
-            })
-            return buf.length // don't chain
-        default:
-            return fsWriteSync(fd, buf)
-    }
-}
 
 // We only expect to get a single initial message which tells us the details we
 // need in order to start the correct wasm binary with proper arguments (if
 // any).
 globalThis.onmessage = async (e) => {
 
-    const { wasm, args } = e.data
+    const { wasm, wasmexec, args } = e.data
+
+    importScripts(wasmexec || 'wasm_exec.js')
+
+    // wasm_exec.js installs a global "fs" object with various file system
+    // functions, especially the writeSync method we're interested in. In order to
+    // fall back onto it where needed, we save the original function.
+    const fsWriteSync = globalThis.fs.writeSync
+
+    // We're now hooking into the file system output function, dealing with stdin
+    // (fd #1) and stdout (fd #2) especially: we send output to these file
+    // descriptors not to the original write function (which does send it to
+    // console.log and console.err respectively) but instead to "the other" side,
+    // where hopefully our nice xterm.js is still waiting...
+    globalThis.fs.writeSync = function (fd, buf) {
+        switch (fd) {
+            case 1:
+            case 2:
+                globalThis.postMessage({
+                    type: fd === 1 ? 'stdout' : 'stderr',
+                    data: decoder.decode(buf),
+                })
+                return buf.length // don't chain
+            default:
+                return fsWriteSync(fd, buf)
+        }
+    }
 
     const go = new Go()
     go.argv = [wasm, ...args]

@@ -100,12 +100,15 @@ const getPerWASMTerminalConfig = (config, element) => {
     return {
         ...config,
         ...Object.fromEntries(Object.entries({
-            cols: element.dataset.cols && parseInt(element.dataset.cols),
+            wasmexec: element.dataset.wasmexec,
+
             rows: element.dataset.rows && parseInt(element.dataset.rows),
-            cursor: element.dataset.cursor,
-            cursorinactive: element.dataset.cursorinactive,
-            blink: element.dataset.blink && parseBool(element.dataset.blink),
+            cols: element.dataset.cols && parseInt(element.dataset.cols),
             scrollback: element.dataset.scrollback && parseInt(element.dataset.scrollback),
+            cursor: element.dataset.cursor,
+            cursorwidth: element.dataset.cursorWidth && parseInt(element.dataset.cursorWidth),
+            cursorinactive: element.dataset.cursorInactive,
+            blink: element.dataset.blink && parseBool(element.dataset.blink),
         }).filter(([_, v]) => v !== undefined)
         ),
         args: element.dataset.args || '', // will be parsed into os.Args[1:]
@@ -132,13 +135,15 @@ const createTerminal = async (el, config) => {
         cols: config.cols,
         rows: config.rows,
         scrollback: config.scrollback,
-        convertEol: true,
         cursorStyle: config.cursor,
+        cursorWidth: config.cursorwidth,
         cursorInactiveStyle: config.cursorinactive,
         cursorBlink: config.blink,
         fontFamily: fontfamilies,
         fontSize: config.fontsize,
         lineHeight: config.lineheight,
+        
+        convertEol: true,
     })
     el.innerHTML = ''
     term.loadAddon(new WebFontsAddon.WebFontsAddon())
@@ -166,13 +171,16 @@ const goWorker = (wasmfile, termelement, element, config) => {
     let worker = null
     let fitterm = null
 
-    const stop = (event) => {
+    // stop the separate worker, if any.
+    const stop = (_) => {
         if (worker) {
             worker.terminate()
             worker = null
         }
     }
 
+    // run a new separate worker after terminating any previous worker for this
+    // WASM.
     const run = async (event) => {
         stop(event)
 
@@ -218,10 +226,12 @@ const goWorker = (wasmfile, termelement, element, config) => {
         // Now tell the worker which wasm to start executing...
         worker.postMessage({
             wasm: config.wasmloc + wasmfile,
+            wasmexec: config.wasmexec,
             args: simpleParseArgs(config.args),
         })
     }
 
+    // tell the terminal to fit into its container element.
     const resize = () => {
         if (fitterm) {
             fitterm()
@@ -322,24 +332,38 @@ window.$docsify = window.$docsify || {}
 window.$docsify.plugins = [].concat(window.$docsify.plugins || [], wasmPlugin)
 
 window.$docsify.gowasm = {
-    // (relative) path to where the wasm files are located.
+    // path to where wasm files to be executed are located; if a relative path
+    // is specified, then it is relative to the plugin location.
     wasmloc: '',
+    // path to where the required Go WASM exec file is located; if a relative
+    // path is specified, then it is relative to the plugin location. If set to
+    // undefined or empty, then the default "wasm_exec.js" is used.
+    wasmexec: 'wasm_exec.js',
 
-    // number of terminal lines.
-    lines: 20,
+    // number of terminal rows (lines).
+    rows: 20,
     // number of terminal columns.
     cols: 80,
-    // cursor can be "block", "underline", or "bar".
+    // amount of rows retained beyond the initial viewport.
+    scrollback: 1000,
+    // cursor style when terminal is focused: can be "block", "underline", or
+    // "bar".
     cursor: 'block',
+    // for cursor "bar", its width in CSS pixels.
+    cursorwidth: undefined,
+    // cursor style when terminal isn't focused: can be "outline", "block",
+    // "underline", "bar", or  "none".
     cursorinactive: 'none',
+    // enables or disables cursor blinking.
     blink: false,
-    fontsize: 14,
-    lineheight: 1.1,
-    scrollback: 500,
-
+    
     // The font family or families to use; either a string or an array of
     // strings.
     fontfamily: 'monospace',
+    // The font size to use.
+    fontsize: 14,
+    // The line height to use.
+    lineheight: 1.1,
 
     runbutton: 'Run again',
 

@@ -1,8 +1,14 @@
 # TheDiveO's Docsify Plugins
 
-The general idea:
+My plugins contribution to the [docsify magical documentation site
+generator](https://docsify.js.org/#/?id=docsify):
+- [**gowasm**](/plugin-gowasm) – run Go WASM binaries in your markdown document
+  and render their outputs in terminals inside your documents.
+- [**codefenceanchors**](/plugin-codefenceanchors) – add HTML `id=` attributes
+  to fenced code blocks, so that you can pass the block contents as command line
+  arguments to your Go WASM binaries.
 
-Go program  WASM binary  Docsify WASM Plugin  WASM execution  XTerm.js
+## Example Madness
 
 Given the following little Go program...
 
@@ -25,8 +31,11 @@ func main() {
 
 ...the resulting (compressed) WASM binary of ~740k is then loaded into the
 browser when this page gets rendered, and then executed in a separate [web
-worker](https://en.wikipedia.org/wiki/Web_worker) in the background -- to keep
+worker](https://en.wikipedia.org/wiki/Web_worker) in the background – to keep
 the web page responsive.
+
+You can even control your gopher's song – make sure to press "Run again" after
+changing their song:
 
 <input id="xxx" type="text" placeholder="Enter name" value="Hellorld!">
 

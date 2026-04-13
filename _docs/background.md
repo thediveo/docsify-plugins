@@ -29,7 +29,7 @@ func main() {
 
 ...the resulting (compressed) WASM binary of ~740k is then loaded into the
 browser when this page gets rendered, and then executed in a separate [web
-worker](https://en.wikipedia.org/wiki/Web_worker) in the background -- to keep
+worker](https://en.wikipedia.org/wiki/Web_worker) in the background – to keep
 the web page responsive.
 
 <div class='gowasm-terminal' data-wasm='hellorld.wasm' data-args="Hellorld!" data-rows="4"></div>
