@@ -41,6 +41,7 @@ const ANSI = {
 const gowasmCustomEvent = {
     run: 'gowasm-run',
     stop: 'gowasm-stop',
+    resize: 'gowasm-resize',
 }
 
 // bunt colorizes the passed text using the additionally specified ANSI
@@ -111,7 +112,12 @@ const getPerWASMTerminalConfig = (config, element) => {
     }
 }
 
-//
+// create the xterm.js Terminal object and attach it to the specified
+// (container) element; pass the terminal-related configuration elements to the
+// Terminal constructor. The return value { term, fit } is the newly created
+// Terminal object as well as a function, which when called, will resize the
+// terminal to fit (again) into its container element. The fit function should
+// be triggered from a debounced page (window) resize handler, or similar.
 const createTerminal = async (el, config) => {
     const fontfamilies = Array.isArray(config.fontfamily)
         ? config.fontfamily.map(fam => "'" + fam + "'").join(',')
@@ -121,6 +127,7 @@ const createTerminal = async (el, config) => {
     // with an exception from loadFonts because 'monospace' wasn't registered.
     // Ouch.
     await WebFontsAddon.loadFonts()
+    const fitaddon = new FitAddon.FitAddon()
     const term = new Terminal({
         cols: config.cols,
         rows: config.rows,
@@ -135,14 +142,18 @@ const createTerminal = async (el, config) => {
     })
     el.innerHTML = ''
     term.loadAddon(new WebFontsAddon.WebFontsAddon())
+    term.loadAddon(fitaddon)
     term.open(el)
-    return term
+    fitaddon.fit()
+
+    return { term: term, fit: () => fitaddon.fit() }
 }
 
 // goWorker creates a new terminal including scaffolding inside the specified
 // elements and then sets up custom event listeners for gowasmCustomEvent.run
-// and gowasmCustomEvent.stop.
-// 
+// and gowasmCustomEvent.stop. Additionally, it listens to
+// gowasmCustomEvent.resize and then resizes the terminal (if any).
+//
 // gowasmCustomEvent.run passes the specified wasm file to a separate worker,
 // applying the passed element-adjusted configuration and handling sending
 // output to the terminal.
@@ -153,6 +164,7 @@ const createTerminal = async (el, config) => {
 // previous worker and recreate a new, empty terminal.
 const goWorker = (wasmfile, termelement, element, config) => {
     let worker = null
+    let fitterm = null
 
     const stop = (event) => {
         if (worker) {
@@ -165,7 +177,8 @@ const goWorker = (wasmfile, termelement, element, config) => {
         stop(event)
 
         termelement.innerHTML = ''
-        const term = await createTerminal(termelement, config)
+        const { term, fit } = await createTerminal(termelement, config)
+        fitterm = fit
 
         if (typeof config.runmsg === 'string') {
             term.writeln(bunt(config.runmsg.replace(/\$1/g, wasmfile), ANSI.gray))
@@ -209,8 +222,15 @@ const goWorker = (wasmfile, termelement, element, config) => {
         })
     }
 
+    const resize = () => {
+        if (fitterm) {
+            fitterm()
+        }
+    }
+
     element.addEventListener(gowasmCustomEvent.run, run)
     element.addEventListener(gowasmCustomEvent.stop, stop)
+    element.addEventListener(gowasmCustomEvent.resize, resize)
 }
 
 // runWasm runs the specified wasmfile in a separate worker. For this, it
@@ -255,6 +275,14 @@ const runWasm = (wasmfile, element, globalconfig) => {
     run() // autostart
 }
 
+const debounce = (delay, f) => {
+    let id
+    return (...args) => {
+        clearTimeout(id)
+        id = setTimeout(() => f.apply(this, args), delay)
+    }
+}
+
 // Our "Go WASM" plugin itself.
 const wasmPlugin = (hook, vm) => {
     const config = vm.config.gowasm || {}
@@ -280,6 +308,13 @@ const wasmPlugin = (hook, vm) => {
             }
         })
     })
+
+    const termresize = debounce(300, () => {
+        document.querySelectorAll('.gowasm-terminal').forEach(element => {
+            element.dispatchEvent(new CustomEvent(gowasmCustomEvent.resize))
+        })
+    })
+    window.addEventListener('resize', termresize)
 }
 
 // Finally add our plugin to docsify's plugin array...

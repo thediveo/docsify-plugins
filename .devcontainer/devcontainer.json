@@ -18,11 +18,15 @@
             "port": "3330",
             "livereload-port": "3331",
             "docs-path": "_docs"
-        }
+        },
+        "ghcr.io/thediveo/devcontainer-features/pin-github-action:0": {}
     },
     "remoteEnv": {
         "GOPATH": "/home/vscode/go",
         "PATH": "/home/vscode/go/bin:/go/bin:/usr/local/go/bin:${localEnv:PATH}"
+    },
+    "postCreateCommand": {
+         "no-first-run-notice": "rm -f /workspaces/.codespaces/shared/first-run-notice.txt"
     },
     "customizations": {
         "vscode": {
