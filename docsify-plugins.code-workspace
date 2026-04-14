@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"workbench.tree.indent": 16,
+		"markdown.styles": [
+			"./.vscode/markdown-preview.css"
+		]
+	}
+}
