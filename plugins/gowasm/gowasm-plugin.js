@@ -142,7 +142,7 @@ const createTerminal = async (el, config) => {
         fontFamily: fontfamilies,
         fontSize: config.fontsize,
         lineHeight: config.lineheight,
-        
+
         convertEol: true,
     })
     el.innerHTML = ''
@@ -192,7 +192,19 @@ const goWorker = (wasmfile, termelement, element, config) => {
             term.writeln(bunt(config.runmsg.replace(/\$1/g, wasmfile), ANSI.gray))
         }
 
-        worker = new Worker(new URL('gowasm-worker.js', import.meta.url))
+        // We require the worker script to be co-located with this script, so we
+        // always use them from the same "package".
+        const resp = await fetch(new URL('gowasm-worker.js', import.meta.url))
+        if (!resp.ok) {
+            throw new Error(resp.statusText)
+        }
+        const workerBlobURL = URL.createObjectURL(
+            new Blob([await resp.text()], { type: 'text/javascript' }))
+
+        worker = new Worker(workerBlobURL, { type: 'module' })
+        worker.onerror = () => {
+            URL.revokeObjectURL(workerBlobURL)
+        }
         worker.onmessage = event => {
             const msg = event.data
             switch (msg.type) {
@@ -224,9 +236,13 @@ const goWorker = (wasmfile, termelement, element, config) => {
             }
         }
         // Now tell the worker which wasm to start executing...
+        const wasmloc = new URL(config.wasmloc,
+            globalThis.location.origin + globalThis.location.pathname).href
+        const wasmexecURL = new URL((config.wasmexec || 'wasm_exec.js'),
+            wasmloc).href
         worker.postMessage({
-            wasm: config.wasmloc + wasmfile,
-            wasmexec: config.wasmexec,
+            wasm: wasmloc + wasmfile,
+            wasmexec: wasmexecURL,
             args: simpleParseArgs(config.args),
         })
     }
@@ -356,7 +372,7 @@ window.$docsify.gowasm = {
     cursorinactive: 'none',
     // enables or disables cursor blinking.
     blink: false,
-    
+
     // The font family or families to use; either a string or an array of
     // strings.
     fontfamily: 'monospace',
