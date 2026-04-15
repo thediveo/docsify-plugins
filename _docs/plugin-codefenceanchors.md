@@ -29,24 +29,26 @@ properly escape the "." in the anchor name as it would otherwise be interpreted
 as an additionally required CSS class selector.
 
 ```markdown
-<div class='gowasm-terminal' data-wasm='hellorld.wasm' data-args="${#main\.go}" data-rows="4"></div>
+<div class='gowasm-terminal' data-wasm='hellorld.wasm' 
+    data-args="${#main\.go}" data-rows="4"></div>
 ```
 
-And here we go:
+And here we go (pun intended):
 
 <div class='gowasm-terminal' data-wasm='hellorld.wasm' data-args="${#main\.go}" data-rows="4"></div>
 
-## Loading codefenceanchors
+## Loading the Plugin
 
 To use the **codefenceanchors** plugin, add the following lines to your
 `index.html`, after you've `<script>`-loaded docsify, but before (if any)
-[**gowasm** plugin](/plugin-gowasm).
+[**gowasm** plugin](/plugin-gowasm). Please note that this loads the plugins
+from the jsDelivr CDN that is also typically used to load docsify and other
+plugins.
 
 ```html
 <!-- attach user-defined anchor ids to fenced code blocks; must be before Go wasm runner -->
-<script src="_plugins/codefenceanchors/codefenceanchors-plugin.js"></script>
-<!-- Go wasm runner with terminal plugin -->
-<script type="module" src="_plugins/gowasm/gowasm-plugin.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/thediveo/docsify-plugins@0/plugins/codefenceanchors/codefenceanchors-plugin.min.js"></script>
+script>
 ```
 
-Note that there are no plugin configurations for **codefenceanchors**.
+There are **no** configurations for the **codefenceanchors** plugin.

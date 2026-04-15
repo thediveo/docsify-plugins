@@ -34,7 +34,7 @@ below.
 Notice, how you can customize the terminal size and pass a command line to the
 Go WASM program using various `data-*` attributes.
 
-## Loading gowasm
+## Loading the Plugin
 
 To use the **gowasm** plugin, add the following lines to your `index.html`,
 after you've `<script>`-loaded docsify.
@@ -43,11 +43,27 @@ after you've `<script>`-loaded docsify.
 
 ```html
 <!-- xterm -->
-<script src="//cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
-<script src="//cdn.jsdelivr.net/npm/@xterm/addon-web-fonts/lib/addon-web-fonts.js"></script>
-<script src="//cdn.jsdelivr.net/npm/@xterm/addon-fit@0.11.0/lib/addon-fit.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-fonts/lib/addon-web-fonts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.11.0/lib/addon-fit.min.js"></script>
 <!-- Go wasm runner with terminal plugin -->
-<script type="module" src="_plugins/gowasm/gowasm-plugin.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/gh/thediveo/docsify-plugins@0/plugins/gowasm/gowasm-plugin.min.js"></script>
+```
+
+Then add theme-aware styling:
+
+```html
+<style>
+    .gowasm-terminal .wasm-runagain {
+        background: var(--sidebar-toggle-background, transparent);
+        border: 1px solid color-mix(in srgb, var(--base-color) 30%, transparent);
+        color: var(--base-color);
+        font: inherit;
+        font-weight: var(--base-font-weight, 500);
+        padding: 2px 8px;
+        cursor: pointer;
+    }
+</style>
 ```
 
 We recommend additionally using our
@@ -64,11 +80,14 @@ following default values:
 ```js
 window.$docsify.gowasm = {
     // path to where wasm files to be executed are located; if a relative path
-    // is specified, then it is relative to the plugin location.
+    // is specified or left undefined, then it is relative to index.html.
     wasmloc: '',
     // path to where the required Go WASM exec file is located; if a relative
     // path is specified, then it is relative to the plugin location. If set to
-    // undefined or empty, then the default "wasm_exec.js" is used.
+    // undefined or empty, then the default "wasm_exec.js" is used and expected
+    // to be in wasmloc. As the Go WASM exec is Go version-specific it can be
+    // easily specified as a CDN URL, such as 
+    // https://cdn.jsdelivr.net/gh/golang/go@go1.26.2/lib/wasm/wasm_exec.min.js
     wasmexec: 'wasm_exec.js',
 
     // number of terminal rows (lines).
@@ -216,7 +235,7 @@ pinning, as shown below.
 ```js
 window.$docsify = {
     gowasm: {
-        wasmexec: '//cdn.jsdelivr.net/gh/golang/go@go1.26.2/lib/wasm/wasm_exec.min.js',
+        wasmexec: 'https://cdn.jsdelivr.net/gh/golang/go@go1.26.2/lib/wasm/wasm_exec.min.js',
     }
 }
 ```
