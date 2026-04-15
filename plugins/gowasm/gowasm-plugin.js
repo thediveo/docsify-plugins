@@ -142,7 +142,7 @@ const createTerminal = async (el, config) => {
         fontFamily: fontfamilies,
         fontSize: config.fontsize,
         lineHeight: config.lineheight,
-        
+
         convertEol: true,
     })
     el.innerHTML = ''
@@ -192,7 +192,8 @@ const goWorker = (wasmfile, termelement, element, config) => {
             term.writeln(bunt(config.runmsg.replace(/\$1/g, wasmfile), ANSI.gray))
         }
 
-        worker = new Worker(new URL('gowasm-worker.js', import.meta.url))
+        worker = new Worker(new URL('gowasm-worker.js', import.meta.url),
+            { type: 'module' })
         worker.onmessage = event => {
             const msg = event.data
             switch (msg.type) {
@@ -356,7 +357,7 @@ window.$docsify.gowasm = {
     cursorinactive: 'none',
     // enables or disables cursor blinking.
     blink: false,
-    
+
     // The font family or families to use; either a string or an array of
     // strings.
     fontfamily: 'monospace',
