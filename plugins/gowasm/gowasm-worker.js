@@ -23,7 +23,7 @@ globalThis.onmessage = async (e) => {
 
     const { wasm, wasmexec, args } = e.data
 
-    await import(wasmexec || 'wasm_exec.js')
+    await import(wasmexec)
 
     // wasm_exec.js installs a global "fs" object with various file system
     // functions, especially the writeSync method we're interested in. In order to

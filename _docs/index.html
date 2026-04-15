@@ -129,7 +129,7 @@
         }
 
         div.alert.callout.important {
-            border-left-color:#11c1c7 !important;
+            border-left-color: #11c1c7 !important;
         }
 
         div.alert.callout.important .title {
@@ -273,8 +273,7 @@
             },
 
             gowasm: {
-                wasmloc: '../../_wasm',
-                //wasmexec: '../../_wasm/wasm_exec.js',
+                wasmloc: '_wasm',
                 wasmexec: '//cdn.jsdelivr.net/gh/golang/go@go1.26.2/lib/wasm/wasm_exec.min.js',
 
                 fontfamily: ['Roboto Mono', 'Nerd Symbols Mono', 'monospace'],
@@ -304,9 +303,11 @@
     <script src="//cdn.jsdelivr.net/npm/@xterm/addon-web-fonts/lib/addon-web-fonts.js"></script>
     <script src="//cdn.jsdelivr.net/npm/@xterm/addon-fit@0.11.0/lib/addon-fit.min.js"></script>
     <!-- attach user-defined anchor ids to fenced code blocks; must be before Go wasm runner -->
-    <script type="module" src="_plugins/codefenceanchors/codefenceanchors-plugin.js"></script>
+    <!-- script type="module" src="_plugins/codefenceanchors/codefenceanchors-plugin.js"></script -->
+    <script type="module" src="//cdn.jsdelivr.net/gh/thediveo/docsify-plugins@0/plugins/codefenceanchors/codefenceanchors-plugin.min.js"></script>
     <!-- Go wasm runner with terminal plugin -->
-    <script type="module" src="_plugins/gowasm/gowasm-plugin.js"></script>
+    <!-- script type="module" src="_plugins/gowasm/gowasm-plugin.js"></script -->
+    <script type="module" src="//cdn.jsdelivr.net/gh/thediveo/docsify-plugins@0/plugins/gowasm/gowasm-plugin.min.js"></script>
 </body>
 
 </html>
