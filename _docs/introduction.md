@@ -40,3 +40,32 @@ changing their song:
 <input id="xxx" type="text" placeholder="Enter name" value="Hellorld!">
 
 <div class='gowasm-terminal' data-wasm='hellorld.wasm' data-args="${#xxx}" data-rows="4"></div>
+
+## Background
+
+The **gowasm** plugin came into live while I was learning the ropes of [Go
+Analyzers](https://pkg.go.dev/golang.org/x/tools/go/analysis#hdr-Analyzer): in
+some cases the AST isn't enough and working with the [SSA
+IR](https://pkg.go.dev/golang.org/x/tools/go/ssa). The SSA IR is a static
+single-assignment intermediate representation – please note that the Go compiler
+uses a _different_ SSA than the analyzer SSA. Unfortunately, there are barely
+any examples of what the SSA graphs look like and since the SSA nodes are
+heavily cyclically linked there doesn't seem to be a generic analyzer SSA graph
+pretty-printer out there.
+
+Taking this simple Go soure code...
+
+```go id=main.go
+package main
+
+var Println = func(s string) { }
+
+func main() {
+	Println("Hellorld!")
+}
+```
+
+...and feeding it into an analyzer SSA pretty-printer of our own making then
+yields:
+
+<div class='gowasm-terminal' data-wasm='prettyssa.wasm' data-args="${#main\.go}" data-rows="46"></div>

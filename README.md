@@ -1,6 +1,6 @@
 # Docsify Plugins
 
-[Online demo and documentation](https://thediveo.github.io/docsify-plugins/#/)
+[Online demo and documentation](https://thediveo.github.io/docsify-plugins/)
 
 ## DevContainer
 
