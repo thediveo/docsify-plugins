@@ -53,16 +53,19 @@ any examples of what the SSA graphs look like and since the SSA nodes are
 heavily cyclically linked there doesn't seem to be a generic analyzer SSA graph
 pretty-printer out there.
 
+Taking this simple Go soure code...
+
 ```go id=main.go
 package main
 
-import "fmt"
-
-var Println = fmt.Println
+var Println = func(s string) { }
 
 func main() {
 	Println("Hellorld!")
 }
 ```
 
-<div class='gowasm-terminal' data-wasm='hellorld.wasm' data-args="${#main\.go}" data-rows="40"></div>
+...and feeding it into an analyzer SSA pretty-printer of our own making then
+yields:
+
+<div class='gowasm-terminal' data-wasm='prettyssa.wasm' data-args="${#main\.go}" data-rows="46"></div>

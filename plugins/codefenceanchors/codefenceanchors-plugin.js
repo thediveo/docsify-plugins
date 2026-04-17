@@ -58,6 +58,12 @@ const extractLang = (info) => {
 
 const install = (hook, vm) => {
 
+    // Process the markdown, placing our own special markers on the code fences
+    // we find -- unless its a fenced code fence using "~~~" aroung the "```"
+    // which we must ignore. The second later pass then will work on the special
+    // markers. We need the markers as can add the HTML attribute only in the
+    // later DOM stage, but in that DOM stage the original code fence attributes
+    // have been lost.
     hook.beforeEach(function (md) {
         // First, protect fenced blocks fenced by "~~~" by putting the fenced
         // fence aside on our stack and replacing them temporarily with special
@@ -65,7 +71,7 @@ const install = (hook, vm) => {
         const tildeBlocks = []
         md = md.replace(/~~~[\s\S]*?~~~/g, (block) => {
             tildeBlocks.push(block)
-            return `__TILDEFENCE_BLOCK_${tildeBlocks.length-1}__`
+            return `__TILDEFENCE_BLOCK_${tildeBlocks.length - 1}__`
         })
 
         // Now process unfenced ``` fences as before, putting special markers
@@ -87,6 +93,9 @@ const install = (hook, vm) => {
         return md
     })
 
+    // With the markdown transformed into DOM elements we now remove our special
+    // markers, extract the intended anchor id from our markers, and add the ids
+    // to the <code> elements.
     hook.doneEach(function () {
         const walker = document.createTreeWalker(
             document.body,
@@ -95,10 +104,19 @@ const install = (hook, vm) => {
             false
         );
 
+        // As we are going to remove the elements with our special markers we
+        // cannot safely walk the DOM tree at the same time. So we first collect
+        // the marker elements...
+        const nodes = []
         let node
         while ((node = walker.nextNode())) {
-            if (!node.nodeValue.startsWith(MAGIC_PREFIX)) continue
-
+            if (node.nodeValue.startsWith(MAGIC_PREFIX)) {
+                nodes.push(node)
+            }
+        }
+        // ...and then mutate the DOM, removing the special markers and adding
+        // the id attributes.
+        nodes.forEach(node => {
             const id = node.nodeValue.slice(MAGIC_PREFIX.length)
             let el = node.nextSibling
             while (el) {
@@ -112,7 +130,7 @@ const install = (hook, vm) => {
                 el = el.nextSibling
             }
             node.remove()
-        }
+        })
     })
 }
 
