@@ -14,6 +14,9 @@
 
 "use strict";
 
+const max_open_fds = 32
+const O_CLOEXEC = 0x80000
+
 const decoder = new TextDecoder('utf-8')
 
 // We only expect to get a single initial message which tells us the details we
@@ -47,6 +50,120 @@ globalThis.onmessage = async (e) => {
             default:
                 return fsWriteSync(fd, buf)
         }
+    }
+
+    const ebadf = () => {
+        const err = new Error("bad file descriptor")
+        err.code = "EBADF"
+        return err
+    }
+
+    const enfile = () => {
+        const err = new Error("too many open files")
+        err.code = "ENFILE"
+        return err
+    }
+
+    const enoent = () => {
+        const err = new Error("no such file")
+        err.code = "ENOENT"
+        return err
+    }
+
+    const eacces = () => {
+        const err = new Error("no access")
+        err.code = "EACCES"
+        return err
+    }
+
+    // fdtable maps fd numbers to {path, pos, data}
+    const fdtable = new Map()
+
+    const allocfd = () => {
+        if (fdtable.size > max_open_fds) {
+            throw enfile()
+        }
+        for (let fd = 3; fd < 3 + max_open_fds; fd++) {
+            if (!fdtable.has(fd)) {
+                return fd
+            }
+        }
+        throw enfile()
+    }
+
+    // When retrieving files, resolve their paths relative to wasm URL, always.
+    const baseURL = new URL(wasm, self.location.href)
+
+    const files = new Map()
+
+    const loadfile = async (path) => {
+        console.log("loading file...", path)
+        if (files.has(path)) {
+            return files.get(path)
+        }
+        const result = await fetch(new URL(path, baseURL))
+        if (!result.ok) {
+            throw enoent()
+        }
+        const contents = new Uint8Array(await result.arrayBuffer())
+        files.set(path, contents)
+        console.log("loaded file", path)
+        return contents
+    }
+
+    globalThis.fs.stat = (path, callback) => {
+        (async () => {
+            try {
+                console.log("stating file...", path)
+                const data = await loadfile(path)
+                callback(null, {
+                    size: data.length,
+                    mode: 0o444,
+                    mtime: new Date(),
+                    isDirectory: () => false,
+                })
+            } catch (err) {
+                callback(err)
+                return
+            }
+        })()
+    }
+
+    globalThis.fs.open = (path, flags, _, callback) => {
+        (async() => {
+            try {
+                console.log("opening file...", path)
+                if (flags & ~O_CLOEXEC) {
+                    throw eacces()
+                }
+                const data = await loadfile(path)
+                const fd = allocfd()
+                fdtable.set(fd, {path, pos: 0, data})
+                console.log("opened file", path)
+                callback(null, fd)
+            } catch (err) {
+                callback(err)
+                return
+            }
+        })()
+    }
+
+    globalThis.fs.close = (fd, callback) => {
+        console.log("closing file", fd)
+        if (!fdtable.delete(fd)) {
+            callback(ebadf())
+            return
+        }
+        callback(null)
+    }
+
+    globalThis.fd.read = (fd, buffer, offset, length, position, callback) => {
+        const f = fdtable.get(fd)
+        if (!f) {
+            callback(ebadf())
+            return
+        }
+        
     }
 
     const go = new Go()
