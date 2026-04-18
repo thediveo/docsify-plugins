@@ -76,7 +76,7 @@ globalThis.onmessage = async (e) => {
         return err
     }
 
-    // fdtable maps fd numbers to {path, pos, data}
+    // fdtable maps fd numbers to {path, data, pos}
     const fdtable = new Map()
 
     const allocfd = () => {
@@ -96,33 +96,82 @@ globalThis.onmessage = async (e) => {
 
     const files = new Map()
 
-    const loadfile = async (path) => {
+    const sanitizedPath = (path) => {
+        path = String(path)
+        path = path.replace(/\\/g, '/')
+
+        const element = path.split('/')
+        const elements = []
+
+        for (const part of element) {
+            if (part === '' || part === '.') {
+                continue;
+            }
+            if (part === '..') {
+                if (elements.length === 0) {
+                    // cannot escape root
+                    continue
+                }
+                elements.pop()
+            } else {
+                elements.push(part)
+            }
+        }
+        return elements.join('/')
+    }
+
+    const fetchFile = async (path) => {
         console.log("loading file...", path)
         if (files.has(path)) {
             return files.get(path)
         }
-        const result = await fetch(new URL(path, baseURL))
+        const url = new URL(sanitizedPath(path), baseURL)
+        console.log("fetching url...", url)
+        const result = await fetch(url)
         if (!result.ok) {
             throw enoent()
         }
-        const contents = new Uint8Array(await result.arrayBuffer())
-        files.set(path, contents)
+        const data = new Uint8Array(await result.arrayBuffer())
+        files.set(path, data)
         console.log("loaded file", path)
-        return contents
+        return data
     }
 
     globalThis.fs.stat = (path, callback) => {
         (async () => {
             try {
                 console.log("stating file...", path)
-                const data = await loadfile(path)
+                const data = await fetchFile(path)
+                console.log("stat'd file", path)
+                const now = Date.now()
                 callback(null, {
-                    size: data.length,
+                    dev: 0,
+                    ino: 0,
                     mode: 0o444,
-                    mtime: new Date(),
+                    nlink: 1,
+                    uid: 0,
+                    gid: 0,
+                    rdev: 0,
+                    size: data.length,
+                    blksize: 4096,
+                    blocks: Math.ceil(data.length / 4096),
+
+                    atimeMs: now,
+                    mtimeMs: now,
+                    ctimeMs: now,
+                    birthtimeMs: now,
+
+                    atime: new Date(now),
+                    mtime: new Date(now),
+                    ctime: new Date(now),
+                    birthtime: new Date(now),
+
+                    isFile: () => true,
                     isDirectory: () => false,
+                    isSymbolicLink: () => false,
                 })
             } catch (err) {
+                console.log("err", err)
                 callback(err)
                 return
             }
@@ -130,15 +179,19 @@ globalThis.onmessage = async (e) => {
     }
 
     globalThis.fs.open = (path, flags, _, callback) => {
-        (async() => {
+        (async () => {
             try {
                 console.log("opening file...", path)
                 if (flags & ~O_CLOEXEC) {
                     throw eacces()
                 }
-                const data = await loadfile(path)
+                const data = await fetchFile(path)
                 const fd = allocfd()
-                fdtable.set(fd, {path, pos: 0, data})
+                fdtable.set(fd, {
+                    path: path,
+                    data: data,
+                    pos: 0,
+                })
                 console.log("opened file", path)
                 callback(null, fd)
             } catch (err) {
@@ -157,13 +210,21 @@ globalThis.onmessage = async (e) => {
         callback(null)
     }
 
-    globalThis.fd.read = (fd, buffer, offset, length, position, callback) => {
+    globalThis.fs.read = (fd, buffer, offset, length, position, callback) => {
+        console.log("reading file", fd)
         const f = fdtable.get(fd)
         if (!f) {
             callback(ebadf())
             return
         }
-        
+        const data = f.data
+        const pos = Math.min(Math.max(0, position !== null ? position : f.pos), data.length)
+        const region = data.subarray(pos, Math.min(pos + length, data.length))
+        buffer.set(region, offset)
+        if (position === null) {
+            f.pos = pos + region.length
+        }
+        callback(null, region.length)
     }
 
     const go = new Go()

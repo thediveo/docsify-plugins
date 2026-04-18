@@ -58,6 +58,8 @@ Taking this simple Go soure code...
 ```go id=main.go
 package main
 
+import "fmt"
+
 var Println = func(s string) { }
 
 func main() {
