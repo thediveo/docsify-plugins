@@ -80,7 +80,7 @@ globalThis.onmessage = async (e) => {
     const fdtable = new Map()
 
     const allocfd = () => {
-        if (fdtable.size > max_open_fds) {
+        if (fdtable.size >= max_open_fds) {
             throw enfile()
         }
         for (let fd = 3; fd < 3 + max_open_fds; fd++) {
@@ -137,49 +137,61 @@ globalThis.onmessage = async (e) => {
         return data
     }
 
+    const statinfo = (size, isDir) => {
+        const now = Date.now()
+        return {
+            dev: 0,
+            ino: 0,
+            mode: isDir ? 0o555 : 0o444,
+            nlink: 1,
+            uid: 0,
+            gid: 0,
+            rdev: 0,
+            size: size,
+            blksize: 4096,
+            blocks: Math.ceil(size / 4096),
+
+            atimeMs: now,
+            mtimeMs: now,
+            ctimeMs: now,
+            birthtimeMs: now,
+
+            atime: new Date(now),
+            mtime: new Date(now),
+            ctime: new Date(now),
+            birthtime: new Date(now),
+
+            isFile: () => !isDir,
+            isDirectory: () => isDir,
+            isSymbolicLink: () => false,
+        }
+    }
+
     globalThis.fs.stat = (path, callback) => {
-        (async () => {
+        (async (path) => {
+            console.log("stating file...", path)
+            const gomagicpath = 'usr/local/go'
+            if (path === gomagicpath || path.startsWith(gomagicpath + '/')) {
+                const elements = path.split("/")
+                if (elements.length > 0 && !elements[elements.length - 1].includes('.')) {
+                    callback(null, statinfo(10000, true))
+                    return
+                }
+            }
             try {
-                console.log("stating file...", path)
                 const data = await fetchFile(path)
                 console.log("stat'd file", path)
-                const now = Date.now()
-                callback(null, {
-                    dev: 0,
-                    ino: 0,
-                    mode: 0o444,
-                    nlink: 1,
-                    uid: 0,
-                    gid: 0,
-                    rdev: 0,
-                    size: data.length,
-                    blksize: 4096,
-                    blocks: Math.ceil(data.length / 4096),
-
-                    atimeMs: now,
-                    mtimeMs: now,
-                    ctimeMs: now,
-                    birthtimeMs: now,
-
-                    atime: new Date(now),
-                    mtime: new Date(now),
-                    ctime: new Date(now),
-                    birthtime: new Date(now),
-
-                    isFile: () => true,
-                    isDirectory: () => false,
-                    isSymbolicLink: () => false,
-                })
+                callback(null, statinfo(data.length, false))
             } catch (err) {
-                console.log("err", err)
+                console.log("stat err", err)
                 callback(err)
                 return
             }
-        })()
+        })(sanitizedPath(path))
     }
 
     globalThis.fs.open = (path, flags, _, callback) => {
-        (async () => {
+        (async (path) => {
             try {
                 console.log("opening file...", path)
                 if (flags & ~O_CLOEXEC) {
@@ -195,10 +207,11 @@ globalThis.onmessage = async (e) => {
                 console.log("opened file", path)
                 callback(null, fd)
             } catch (err) {
+                console.log("open err", err)
                 callback(err)
                 return
             }
-        })()
+        })(sanitizedPath(path))
     }
 
     globalThis.fs.close = (fd, callback) => {
@@ -225,6 +238,11 @@ globalThis.onmessage = async (e) => {
             f.pos = pos + region.length
         }
         callback(null, region.length)
+    }
+
+    globalThis.fs.readdir = (path, callback) => {
+        console.log("reading dir", path)
+        callback(null, ebadf())
     }
 
     const go = new Go()
