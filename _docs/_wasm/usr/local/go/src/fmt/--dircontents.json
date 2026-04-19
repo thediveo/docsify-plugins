@@ -1,0 +1,72 @@
+[
+  {
+    "name": "doc.go",
+    "type": "file",
+    "size": 15102
+  },
+  {
+    "name": "errors.go",
+    "type": "file",
+    "size": 1729
+  },
+  {
+    "name": "errors_test.go",
+    "type": "file",
+    "size": 3706
+  },
+  {
+    "name": "example_test.go",
+    "type": "file",
+    "size": 12099
+  },
+  {
+    "name": "export_test.go",
+    "type": "file",
+    "size": 219
+  },
+  {
+    "name": "fmt_test.go",
+    "type": "file",
+    "size": 63960
+  },
+  {
+    "name": "format.go",
+    "type": "file",
+    "size": 14116
+  },
+  {
+    "name": "gostringer_example_test.go",
+    "type": "file",
+    "size": 1584
+  },
+  {
+    "name": "print.go",
+    "type": "file",
+    "size": 32551
+  },
+  {
+    "name": "scan.go",
+    "type": "file",
+    "size": 32669
+  },
+  {
+    "name": "scan_test.go",
+    "type": "file",
+    "size": 40227
+  },
+  {
+    "name": "state_test.go",
+    "type": "file",
+    "size": 1477
+  },
+  {
+    "name": "stringer_example_test.go",
+    "type": "file",
+    "size": 551
+  },
+  {
+    "name": "stringer_test.go",
+    "type": "file",
+    "size": 2156
+  }
+]

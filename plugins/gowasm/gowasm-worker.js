@@ -15,7 +15,12 @@
 "use strict";
 
 const max_open_fds = 32
-const O_CLOEXEC = 0x80000
+const first_available_fd = 3
+
+// inode file types, from Go's syscall_js.go; see:
+// https://github.com/golang/go/blob/9c8bf0e72a6fb3b415b591b124b59fbb7cf92252/src/syscall/syscall_js.go#L177
+const S_IFREG = 0o0000100000
+const S_IFDIR = 0o0000040000
 
 const decoder = new TextDecoder('utf-8')
 
@@ -27,6 +32,31 @@ globalThis.onmessage = async (e) => {
     const { wasm, wasmexec, args } = e.data
 
     await import(wasmexec)
+
+    const ebadf = () => {
+        const err = new Error("bad file descriptor")
+        err.code = "EBADF"
+        return err
+    }
+
+    const enfile = () => {
+        const err = new Error("too many open files")
+        err.code = "ENFILE"
+        return err
+    }
+
+    const enoent = () => {
+        const err = new Error("no such file or directory")
+        err.code = "ENOENT"
+        return err
+    }
+
+    const eacces = () => {
+        const err = new Error("no access")
+        err.code = "EACCES"
+        return err
+    }
+
 
     // wasm_exec.js installs a global "fs" object with various file system
     // functions, especially the writeSync method we're interested in. In order to
@@ -52,38 +82,16 @@ globalThis.onmessage = async (e) => {
         }
     }
 
-    const ebadf = () => {
-        const err = new Error("bad file descriptor")
-        err.code = "EBADF"
-        return err
-    }
-
-    const enfile = () => {
-        const err = new Error("too many open files")
-        err.code = "ENFILE"
-        return err
-    }
-
-    const enoent = () => {
-        const err = new Error("no such file")
-        err.code = "ENOENT"
-        return err
-    }
-
-    const eacces = () => {
-        const err = new Error("no access")
-        err.code = "EACCES"
-        return err
-    }
-
-    // fdtable maps fd numbers to {path, data, pos}
+    // fdtable maps fd numbers to objects with fields {path, data, pos}.
     const fdtable = new Map()
 
+    // allocfd allocates the lowest available fd (similar to how *nixe behave),
+    // but limiting the total amount of concurrently used fds to max_open_fds.
     const allocfd = () => {
         if (fdtable.size >= max_open_fds) {
             throw enfile()
         }
-        for (let fd = 3; fd < 3 + max_open_fds; fd++) {
+        for (let fd = first_available_fd; fd < first_available_fd + max_open_fds; fd++) {
             if (!fdtable.has(fd)) {
                 return fd
             }
@@ -120,13 +128,27 @@ globalThis.onmessage = async (e) => {
         return elements.join('/')
     }
 
+    // fetchDir fetches the .dircontents.json for the directory specified by
+    // path, and returns the array of {name, type, (size)} objects.
+    const fetchDir = async (path) => {
+        const url = new URL(sanitizedPath(path) + '/--dircontents.json', baseURL)
+        console.log("fetching dir entries", url.toString())
+        const result = await fetch(url)
+        if (!result.ok) {
+            throw enoent()
+        }
+        const direntries = await result.json()
+        console.log("directory with", direntries.length, "entries")
+        return direntries
+    }
+
     const fetchFile = async (path) => {
         console.log("loading file...", path)
         if (files.has(path)) {
             return files.get(path)
         }
         const url = new URL(sanitizedPath(path), baseURL)
-        console.log("fetching url...", url)
+        console.log("fetching url...", url.toString())
         const result = await fetch(url)
         if (!result.ok) {
             throw enoent()
@@ -139,10 +161,12 @@ globalThis.onmessage = async (e) => {
 
     const statinfo = (size, isDir) => {
         const now = Date.now()
+        // https://github.com/golang/go/blob/9c8bf0e72a6fb3b415b591b124b59fbb7cf92252/src/syscall/fs_js.go#L183
         return {
             dev: 0,
             ino: 0,
-            mode: isDir ? 0o555 : 0o444,
+            // https://github.com/golang/go/blob/9c8bf0e72a6fb3b415b591b124b59fbb7cf92252/src/syscall/syscall_js.go#L179
+            mode: isDir ? (S_IFDIR | 0o555) : (S_IFREG | 0o444),
             nlink: 1,
             uid: 0,
             gid: 0,
@@ -154,33 +178,32 @@ globalThis.onmessage = async (e) => {
             atimeMs: now,
             mtimeMs: now,
             ctimeMs: now,
-            birthtimeMs: now,
 
-            atime: new Date(now),
-            mtime: new Date(now),
-            ctime: new Date(now),
-            birthtime: new Date(now),
-
-            isFile: () => !isDir,
             isDirectory: () => isDir,
-            isSymbolicLink: () => false,
         }
     }
 
+    // see also:
+    // https://github.com/golang/go/blob/9c8bf0e72a6fb3b415b591b124b59fbb7cf92252/src/syscall/fs_js.go#L205
     globalThis.fs.stat = (path, callback) => {
         (async (path) => {
-            console.log("stating file...", path)
-            const gomagicpath = 'usr/local/go'
-            if (path === gomagicpath || path.startsWith(gomagicpath + '/')) {
-                const elements = path.split("/")
-                if (elements.length > 0 && !elements[elements.length - 1].includes('.')) {
-                    callback(null, statinfo(10000, true))
-                    return
-                }
+            console.log("stating file/directory...", path)
+            const elements = path.split('/')
+            const name = elements.pop()
+            const dir = elements.join('/')
+            const direntries = await fetchDir(dir)
+            const match = direntries.find(direntry => direntry.name === name)
+
+            if (match && match.type === 'directory') {
+                console.log("it's a directory...", name)
+                const direntries = await fetchDir(path)
+                callback(null, statinfo(direntries.length * (2+256), true))
+                return
             }
+
             try {
                 const data = await fetchFile(path)
-                console.log("stat'd file", path)
+                console.log("...stat'ing as ordinary file", path)
                 callback(null, statinfo(data.length, false))
             } catch (err) {
                 console.log("stat err", err)
@@ -190,11 +213,13 @@ globalThis.onmessage = async (e) => {
         })(sanitizedPath(path))
     }
 
+    // see also:
+    // https://github.com/golang/go/blob/9c8bf0e72a6fb3b415b591b124b59fbb7cf92252/src/syscall/fs_js.go#L71
     globalThis.fs.open = (path, flags, _, callback) => {
         (async (path) => {
             try {
-                console.log("opening file...", path)
-                if (flags & ~O_CLOEXEC) {
+                console.log("opening file/directory...", path, "with flags", flags)
+                if (flags) {
                     throw eacces()
                 }
                 const data = await fetchFile(path)
@@ -204,7 +229,7 @@ globalThis.onmessage = async (e) => {
                     data: data,
                     pos: 0,
                 })
-                console.log("opened file", path)
+                console.log("opened file with fd", fd)
                 callback(null, fd)
             } catch (err) {
                 console.log("open err", err)

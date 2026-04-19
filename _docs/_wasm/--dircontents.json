@@ -1,0 +1,21 @@
+[
+  {
+    "name": "hellorld.wasm.gz",
+    "type": "file",
+    "size": 762014
+  },
+  {
+    "name": "prettyssa.wasm.gz",
+    "type": "file",
+    "size": 2637903
+  },
+  {
+    "name": "usr",
+    "type": "directory"
+  },
+  {
+    "name": "wasm_exec.js",
+    "type": "file",
+    "size": 16992
+  }
+]
